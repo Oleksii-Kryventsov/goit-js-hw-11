@@ -4,26 +4,19 @@ import SimpleLightbox from "simplelightbox";
 import "simplelightbox/dist/simple-lightbox.min.css";
 
 const BASE_URL = 'https://pixabay.com/api/';
-const API_KEY = '34970535-de5786fce74da62105e4e2a92'
+const API_KEY = '34970535-de5786fce74da62105e4e2a92';
 
 const form = document.querySelector('#search-form');
 const gallery = document.querySelector('.gallery');
 const loadMoreBtn = document.querySelector('.load-more');
 
+
 form.addEventListener('submit', handleSearch);
 loadMoreBtn.addEventListener('click', handleLoadMore);
 
-let searchQuery = "";
-let totalHits = 40;
-let page = 1;
-let per_page = 40;
-const lightbox = new SimpleLightbox('.gallery a', {
-    captionSelector: 'img',
-    captionsData: 'alt',
-    captionPosition: 'bottom',
-    captionDelay: 250,
-    scrollZoom: false,
-});
+let searchQuery = '';
+const simpleLightbox = new SimpleLightbox(".gallery a", { captionSelector: 'img', captionsData: 'alt', captionDelay: 250 });
+
 
 function handleSearch(event) {
     event.preventDefault();
@@ -31,52 +24,59 @@ function handleSearch(event) {
     clearGallery();
     if (!searchQuery) {
         return
-    }
-    fetchImg(searchQuery);
+    };
+    fetchImg(searchQuery)
     event.target.reset();
-}
+};
 
 function clearGallery() {
-    gallery.innerHTML = "";
-}
+    gallery.innerHTML = '';
+};
+
+let totalHits = 40;
+let page = 1;
+let per_page = 40;
 
 function renderGallery(images) {
     page += 1;
-    totalHits = images.data.totalHits;
     
+    totalHits = images.data.totalHits;
     if (images.data.hits.length === 0) {
-        Notiflix.Notify.failure('Sorry, there are no images matching your search query. Please try again.');
+        Notiflix.Notify.failure('Sorry, there are no images matching your search query. Please try again.');   
     };
-    const createImgMarkup = images.data.hits.map(({ webformatURL, largeImageURL, likes, views, comments, downloads, tags }) => {
+    
+    const createImgMarkup = images.data.hits.map(({largeImageURL, webformatURL, tags, likes, views, comments, downloads}) => {
         const createdImg = `
-        <a href="${largeImageURL}">
-          <img src="${webformatURL}" alt="${tags}" loading="lazy"/>
-        </a>
-        <div class="info">
-         <p class="info-item">
-           <b>Likes</b>${likes}
-         </p>
-         <p class="info-item">
-           <b>Views</b>${views}
-         </p>
-         <p class="info-item">
-          <b>Comments</b>${comments}
-         </p>
-         <p class="info-item">
-          <b>Downloads</b>${downloads}
-         </p>
-        </div>
-        </div>`
+        <div class="gallery photo-card">
+            <a href="${largeImageURL}">
+            <img src="${webformatURL}" alt="${tags}" loading="lazy" />
+            </a>
+            <div class="info">
+                <p class="info-item">
+                <b>Likes:<br> <span class="data">${likes}</span></b>
+                </p>
+                <p class="info-item">
+                <b>Views:<br> <span class="data">${views}</span></b>
+                </p>
+                <p class="info-item">
+                <b>Comments:<br> <span class="data">${comments}</span></b>
+                </p>
+                <p class="info-item">
+                <b>Downloads:<br> <span class="data">${downloads}</span></b>
+                </p>
+            </div>
+            </div>
+        `;
         return createdImg;
-    }); join("");
+    }).join('');
 
-    gallery.insertAdjacentElement('beforeend', createImgMarkup);
+    gallery.insertAdjacentHTML("beforeend", createImgMarkup);
     loadMoreBtn.classList.remove('is-hidden');
-    lightbox.refresh();
+    simpleLightbox.refresh();
 
     if (images.data.hits.length < 40) {
         loadMoreBtn.classList.add('is-hidden')
-    };
+    }
 };
 
 function handleError() {
@@ -85,14 +85,14 @@ function handleError() {
 
 function handleLoadMore() {
     loadMoreBtn.classList.add('is-hidden');
-    fetchImg(searchQuery);
+    fetchImg(searchQuery)
     searchQuery = '';
-
     if ((totalHits - page * per_page) > 0) {
         Notiflix.Notify.success(`Hooray! We found ${totalHits - page * per_page} images.`);
     } else if ((totalHits - page * per_page) < 40) {
         Notiflix.Notify.warning('We`re sorry, but you`ve reached the end of search results.');
     }
+
 };
 
 async function fetchImg(searchQuery) {
@@ -114,5 +114,4 @@ async function fetchImg(searchQuery) {
     } catch (error) {
     handleError(error);
     }
-}
-
+};
