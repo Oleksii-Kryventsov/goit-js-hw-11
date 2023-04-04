@@ -1,52 +1,34 @@
 import Notiflix from "notiflix";
-import axios from "axios";
+import API from './fetch';
 import SimpleLightbox from "simplelightbox";
 import "simplelightbox/dist/simple-lightbox.min.css";
 
-const BASE_URL = 'https://pixabay.com/api/';
-const API_KEY = '34970535-de5786fce74da62105e4e2a92';
 
 const form = document.querySelector('#search-form');
 const gallery = document.querySelector('.gallery');
 const loadMoreBtn = document.querySelector('.load-more');
+const simpleLightbox = new SimpleLightbox(".gallery a", { captionSelector: 'img', captionsData: 'alt', captionDelay: 250 });
+const serviceAPI = new API();
 
 
 form.addEventListener('submit', handleSearch);
 loadMoreBtn.addEventListener('click', handleLoadMore);
 
-let searchQuery = '';
-const simpleLightbox = new SimpleLightbox(".gallery a", { captionSelector: 'img', captionsData: 'alt', captionDelay: 250 });
-
 
 function handleSearch(event) {
-    event.preventDefault();
-    searchQuery = event.target.searchQuery.value.trim();
-    clearGallery();
-    if (!searchQuery) {
-        return
-    };
-    fetchImg(searchQuery)
-    event.target.reset();
-};
-
-function clearGallery() {
-    gallery.innerHTML = '';
-};
-
-let totalHits = 40;
-let page = 1;
-let per_page = 40;
-
-function renderGallery(images) {
-    page += 1;
-    
-    totalHits = images.data.totalHits;
-    if (images.data.hits.length === 0) {
-        Notiflix.Notify.failure('Sorry, there are no images matching your search query. Please try again.');   
-    };
-    
-    const createImgMarkup = images.data.hits.map(({largeImageURL, webformatURL, tags, likes, views, comments, downloads}) => {
-        const createdImg = `
+  event.preventDefault();
+  currentQuery();
+  try {
+    fetchGallery();
+  }
+  catch (error) {
+    console.log(error);
+    Notiflix.Notify.failure("Error!!!");
+  }
+}
+function createGalleryMarkup(images) {
+    return images.map(({largeImageURL, webformatURL, tags, likes, views, comments, downloads}) => {
+        return `
         <div class="gallery photo-card">
             <a href="${largeImageURL}">
             <img src="${webformatURL}" alt="${tags}" loading="lazy" />
@@ -67,51 +49,70 @@ function renderGallery(images) {
             </div>
             </div>
         `;
-        return createdImg;
     }).join('');
 
-    gallery.insertAdjacentHTML("beforeend", createImgMarkup);
-    loadMoreBtn.classList.remove('is-hidden');
-    simpleLightbox.refresh();
 
-    if (images.data.hits.length < 40) {
-        loadMoreBtn.classList.add('is-hidden')
-    }
+    // gallery.insertAdjacentHTML("beforeend", createImgMarkup);
+    // loadMoreBtn.classList.remove('is-hidden');
+    // simpleLightbox.refresh();
+
+    // if (images.data.hits.length < 40) {
+    //     loadMoreBtn.classList.add('is-hidden')
+    // }
 };
 
-function handleError() {
-    Notiflix.Notify.failure('Error');
+function createImg(images) {
+  gallery.insertAdjacentHTML("beforeend", images);
+  simpleLightbox.refresh();
 };
 
-function handleLoadMore() {
-    loadMoreBtn.classList.add('is-hidden');
-    fetchImg(searchQuery)
-    searchQuery = '';
-    if ((totalHits - page * per_page) > 0) {
-        Notiflix.Notify.success(`Hooray! We found ${totalHits - page * per_page} images.`);
-    } else if ((totalHits - page * per_page) < 40) {
-        Notiflix.Notify.warning('We`re sorry, but you`ve reached the end of search results.');
-    }
-
+function clearGallery() {
+    gallery.innerHTML = '';
 };
 
-async function fetchImg(searchQuery) {
-    try {
-        const response = await axios.get(`${BASE_URL}`, {
-            params: {
-                key: API_KEY,
-                q: searchQuery,
-                per_page: per_page,
-                page: page,
-                safesearch: true,
-                orientation: 'horizontal',
-                image_type: 'photo',
-            },
-        });
-        
-    renderGallery(response);
+async function handleLoadMore() {
+  try {
+    const response = await serviceAPI.fetchImages();
+    const cardEl = document.querySelectorAll('.photo-card');
+    if (cardEl.length === response.data.totalHits) {
+      endGallery();
+    };
     
+      const newPage = createGalleryMarkup(response.data.hits);
+      createImg(newPage);
+        
     } catch (error) {
-    handleError(error);
-    }
+    console.log(error);
+    Notiflix.Notify.failure("Error!");
+  }
+};
+
+function endGallery() {
+  loadMoreBtn.classList.toggle('is-hidden');
+  Notiflix.Notify.info("Were sorry, but you've reached the end of search results");
+};
+
+function currentQuery() {
+  const formData = new FormData(form);
+  serviceAPI.query = formData.get('searchQuery').trim();
+  serviceAPI.resetPage();
+  clearGallery();
+};
+
+async function fetchGallery() {
+    const response = await serviceAPI.fetchImages();
+    const hits = response.data.hits;
+    const totalHits = response.data.totalHits;
+    if (hits.length === 0) {
+      Notiflix.Notify.failure(
+        "Sorry, there are no images matching your search query. Please try again."
+      );
+      clearGallery();
+      return;
+    };
+
+    Notiflix.Notify.success(`Hooray! We found ${totalHits} images.`);
+    const galleryMarkup = createGalleryMarkup(hits);
+    createImg(galleryMarkup);
+    loadMoreBtn.classList.toggle('is-hidden');
 };
